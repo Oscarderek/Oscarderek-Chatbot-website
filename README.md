@@ -28,23 +28,6 @@ A full-stack Flask application that allows users to:
 | Bootstrap 5	|  Frontend UI framework             |
 | JavaScript & Fetch API	  |  Dynamic front-end interactions |
 
-## Project Structure
-your_project/
-├── static/
-│   └── (CSS/JS Files)
-├── templates/
-│   ├── login.html
-│   ├── signup.html
-│   ├── dashboard.html
-│   ├── main.html
-│   └── chat.html
-├── uploads/
-│   └── (Uploaded Files Saved Here)
-├── app.py
-├── requirements.txt
-├── README.md
-└── oscardata.db (Generated after first run)
-
 ## User Authentication
 Registration (Sign up): Create a new user account (Username, Email, Password).
 Login: Log in securely with hashed password verification.
