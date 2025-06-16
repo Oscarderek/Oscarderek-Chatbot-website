@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+        }
+        .chat {
+            margin-top: 50px;
+        }
+        .card {
+            background-color: #1e1e1e;
+            border: none;
+        }
+        .card-header {
+            background-color: #333;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+        }
+        .card-header img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 10px;
+        }
+        #messageContainer {
+            height: 400px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+        .bot-message, .user-message {
+            padding: 10px;
+            border-radius: 10px;
+            margin: 5px 0;
+            max-width: 75%;
+        }
+        .bot-message {
+            background-color: #444;
+            color: white;
+            align-self: flex-start;
+        }
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+        }
+        .message-time {
+            font-size: 0.8em;
+            color: #fff;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body> 
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-md-8 chat">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex align-items-center">
+                            <img src="https://i.ibb.co/fSNP7Rz/icons8-chatgpt-512.png" class="rounded-circle user_img">
+                            <h4 class="mb-0">Welcome, {{ username }}</h4>
+                        </div>  
+                        <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
+                    </div>
+                    <div id="messageContainer" class="card-body"></div>
+                    <div class="card-footer">
+                        <form id="messageArea" class="input-group">
+                            <input type="text" id="text" placeholder="Ask me something..." class="form-control" required>
+                            <div class="input-group-append">
+                                <button type="submit" class="btn btn-success">Send</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            fetch('/get_username')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("username").innerText = data.username;
+                    fetchChatHistory();
+                })
+                .catch(error => console.error('Error fetching username:', error));
+
+            function getTime() {
+                const date = new Date();
+                return date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0');
+            }
+
+            function scrollToBottom() {
+                let messageContainer = document.getElementById("messageContainer");
+                messageContainer.scrollTop = messageContainer.scrollHeight;
+            }
+
+            function fetchChatHistory() {
+                fetch("/chat_history")
+                    .then(response => response.json())
+                    .then(chatData => {
+                        const messageContainer = document.getElementById("messageContainer");
+                        messageContainer.innerHTML = "";
+
+                        chatData.chat_history.forEach(chat => {
+                            appendMessage(chat.message, chat.sender, chat.timestamp);
+                        });
+
+                        scrollToBottom();
+                    })
+                    .catch(error => console.error("Error loading chat history:", error));
+            }
+
+            function appendMessage(message, sender, timestamp = "") {
+                const messageContainer = document.getElementById("messageContainer");
+                let messageDiv = document.createElement("div");
+                messageDiv.classList.add(sender === "user" ? "user-message" : "bot-message");
+
+                let formattedMessage = message.replace(/\n/g, "<br>"); // Preserve line breaks
+                
+                messageDiv.innerHTML = `<span class='message-text'>${formattedMessage}</span>
+                                        <span class='message-time'>${timestamp}</span>`;
+                messageContainer.appendChild(messageDiv);
+            }
+
+            document.getElementById("messageArea").addEventListener("submit", function(event) {
+                event.preventDefault();
+                let userText = document.getElementById("text").value.trim();
+                if (userText === "") return;
+
+                appendMessage(userText, "user", getTime());
+                document.getElementById("text").value = "";
+                scrollToBottom();
+
+                let typingIndicator = document.createElement("div");
+                typingIndicator.classList.add("bot-message");
+                typingIndicator.id = "typingIndicator";
+                typingIndicator.innerHTML = "<span>Chatbot is typing...</span>";
+                messageContainer.appendChild(typingIndicator);
+                scrollToBottom();
+
+                fetch("/qa", {
+                    method: "POST",
+                    body: JSON.stringify({ question: userText }),
+                    headers: { "Content-Type": "application/json" }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    setTimeout(() => {
+                        document.getElementById("typingIndicator").remove();
+
+                        // Ensure we display a proper response
+                        let botResponse = data.answer ? data.answer.replace(/\n/g, "<br>") : "I'm not sure, can you ask differently?";
+
+                        appendMessage(botResponse, "bot", getTime());
+                        scrollToBottom();
+                    }, 1000);
+                })
+
+                .catch(error => {
+                    document.getElementById("typingIndicator").remove();
+                    appendMessage("Error: Unable to fetch response.", "bot", getTime());
+                    console.error("Error:", error);
+                });
+            });
+        });
+
+        function logout() {
+            window.location.href = "{{url_for('logout')}}";
+        }
+    </script>
+</body>
+</html>
